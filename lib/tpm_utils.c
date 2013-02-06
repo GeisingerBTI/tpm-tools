@@ -20,6 +20,7 @@
  */
 
 #include "config.h"
+#include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <trousers/tss.h>
@@ -162,58 +163,84 @@ char *getPasswd(const char *a_pszPrompt, int* a_iLen,
 	return _getPasswd( a_pszPrompt, a_iLen, a_bConfirm, useUnicode);
 }
 #endif
+
+#define __SET_ECHO_ON	1
+#define __SET_ECHO_OFF	0
+
+int __set_echo(int on, tcflag_t *old_flag) {
+	int err;
+	struct termios term;
+
+	if (tcgetattr(STDIN_FILENO, &term) == -1) {
+		logError("Cannot get terminal attributes");
+		return 1;
+	}
+
+	if (on) {
+		term.c_lflag = *old_flag;
+	} else {
+		*old_flag = term.c_lflag;
+		term.c_lflag &= ~ECHO;
+		term.c_lflag |= (ECHOE | ECHOK | ECHONL | ICANON);
+	}
+
+	err = tcsetattr(STDIN_FILENO, TCSAFLUSH, &term);
+	if (err) {
+		logError("Cannot set terminal attributes");
+		return 1;
+	}
+
+	return 0;
+}
+
 char *_getPasswd(const char *a_pszPrompt, int* a_iLen, 
 		BOOL a_bConfirm, BOOL a_bUseUnicode) {
 
 	char *pszPrompt = (char *)a_pszPrompt;
-	char *pszPasswd = NULL;
 	char *pszRetPasswd = NULL;
+	char buf1[256], buf2[256];
+	int items;
+	tcflag_t old_flag;
 
-	do {
-		// Get password value from user - this is a static buffer
-		// and should never be freed
-		pszPasswd = getpass( pszPrompt );
-		if (!pszPasswd && pszRetPasswd) {
-			shredPasswd( pszRetPasswd );
-			return NULL;
-		}
+	printf("%s", a_pszPrompt);
+	memset(buf1, 0, sizeof(buf1));
 
-		// If this is confirmation pass check for match
-		if ( pszRetPasswd ) {
-			// Matched work complete
-			if ( strcmp( pszPasswd, pszRetPasswd ) == 0)
-				goto out;
+	if (__set_echo(__SET_ECHO_OFF, &old_flag))
+		return NULL;
 
+	items = scanf("%255s", buf1);
+	if (items != 1)
+		goto out;
+
+	if (a_bConfirm) {
+		pszPrompt = _("Confirm password: ");
+
+		printf("%s", pszPrompt);
+		memset(buf2, 0, sizeof(buf2));
+
+		items = scanf("%255s", buf2);
+		if (items != 1)
+			goto out;
+
+		if (memcmp(buf1, buf2, sizeof(buf1))) {
 			// No match clean-up
 			logMsg( _("Passwords didn't match\n") );
-
-			// pszPasswd will be cleaned up at out label
-			shredPasswd( pszRetPasswd );
-			pszRetPasswd = NULL;
 			goto out;
-		}
-
-		// Save this passwd for next pass and/or return val
-		pszRetPasswd = strdup( pszPasswd );
-		if ( !pszRetPasswd )
-			goto out;
-
-		pszPrompt = _("Confirm password: ");
-	} while (a_bConfirm);
-
-out:
-	if (pszRetPasswd) {
-		*a_iLen = strlen(pszRetPasswd);
-
-		if (a_bUseUnicode) {
-			shredPasswd(pszRetPasswd);
-			pszRetPasswd = (char *)Trspi_Native_To_UNICODE((BYTE *)pszPasswd, (unsigned int *)a_iLen);
 		}
 	}
 
-	// pszPasswd is a static buffer, just clear it
-	if ( pszPasswd )
-		memset( pszPasswd, 0, strlen( pszPasswd ) );
+	*a_iLen = strlen(buf1);
+
+	if (a_bUseUnicode) {
+		pszRetPasswd = (char *)Trspi_Native_To_UNICODE((BYTE *)buf1, (unsigned int *)a_iLen);
+	} else {
+		pszRetPasswd = strdup(buf1);
+	}
+out:
+	memset(buf1, 0, sizeof(buf1));
+	memset(buf2, 0, sizeof(buf2));
+
+	__set_echo(__SET_ECHO_ON, &old_flag);
 
 	return pszRetPasswd;
 }
