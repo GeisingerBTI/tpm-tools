@@ -430,7 +430,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size,
 	BIO_free(b64);
 	b64 = NULL;
 	/* a BIO_reset failure shouldn't have an affect at this point */
-	BIO_reset(bmem);
+	(void)BIO_reset(bmem);
 
 tss_out:
 	Tspi_Context_Close(hContext);
@@ -444,7 +444,7 @@ out:
 	if ( b64 )
 		BIO_free(b64);
 	if ( bmem ) {
-		BIO_set_close(bmem, BIO_CLOSE);
+		(void)BIO_set_close(bmem, BIO_CLOSE);
 		BIO_free(bmem);
 	}
 
