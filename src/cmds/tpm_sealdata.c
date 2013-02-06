@@ -102,9 +102,9 @@ int main(int argc, char **argv)
 	{"unicode", no_argument, NULL, 'u'},
 	{"well-known", no_argument, NULL, 'z'}
 	};
-	unsigned char line[EVP_CIPHER_block_size(EVP_aes_256_cbc()) * 16];
+	unsigned char line[256];
 	int lineLen;
-	unsigned char encData[sizeof(line) + EVP_CIPHER_block_size(EVP_aes_256_cbc())];
+	unsigned char encData[sizeof(line) + 16];
 	int encDataLen;
 	UINT32 encLen, i;
 	BYTE *encKey;

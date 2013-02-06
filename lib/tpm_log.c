@@ -131,7 +131,7 @@ void logCmdOption(const char *aOption, const char *aDescr)
 	logMsg("\t%s\n\t\t%s\n", aOption, aDescr);
 }
 
-void logGenericOptions()
+void logGenericOptions(void)
 {
 	char *lOpt = NULL;
 
@@ -146,17 +146,17 @@ void logGenericOptions()
 	free ( lOpt );
 }
 
-void logUnicodeCmdOption()
+void logUnicodeCmdOption(void)
 {
 	logCmdOption("-u, --unicode", _("Use TSS UNICODE encoding for passwords to comply with applications using TSS popup boxes"));
 }
 
-void logOwnerPassCmdOption()
+void logOwnerPassCmdOption(void)
 {
 	logCmdOption("-o, --pwdo", _("Owner password"));
 }
 
-void logNVIndexCmdOption()
+void logNVIndexCmdOption(void)
 {
 	logCmdOption("-i, --index", _("Index of the NVRAM area"));
 }

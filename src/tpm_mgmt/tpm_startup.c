@@ -27,7 +27,7 @@
 #include <string.h>
 #include <netinet/in.h>
 
-int main() {
+int main(void) {
 
 	char startup[] = {
 		0, 193,		/* TPM_TAG_RQU_COMMAND */

@@ -168,7 +168,7 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 	TSS_HPOLICY hTpmPolicy;
 	char *pwd = NULL;
 	int pswd_len;
-	char rsp[5];
+	char rsp[5] = { 0, };
 	int scanCount;
 
 	//get status w/o owner auth (FAILS 1.1, should PASS 1.2)
@@ -225,10 +225,10 @@ static BOOL confirmLifeLock(TSS_HCONTEXT hContext, TSS_HTPM hTpm)
 	}
 	logMsg
 	    (_("This command cannot be undone.  Are you sure you want to continue?[y/N]\n"));
-	scanCount = scanf("%5s", rsp);
+	scanCount = scanf("%4s", rsp);
 
 	 /* TRANSLATORS: this should be the affirmative letter that was  prompted for in the message corresponding to: "Are you sure you want to continue?[y/N]" */ 
-	if (scanCount >= 1 && strcmp(rsp, _("y")) == 0) {
+	if (scanCount >= 1 && rsp[0] == 'y') {
 		logMsg
 		    (_("Setting the lifetime lock was confirmed.\nContinuing.\n"));
 		bRc = TRUE;

@@ -70,7 +70,7 @@ int tpmUnsealFile( char* fname, unsigned char** tss_data, int* tss_size,
 
 	int rc, rcLen=0, tssLen=0, evpLen=0;
 	BYTE* rcPtr;
-	char data[EVP_CIPHER_block_size(EVP_aes_256_cbc()) * 16];
+	char data[256];
 	BYTE *tssKeyData = NULL;
 	int tssKeyDataSize = 0;
 	BYTE *evpKeyData = NULL;

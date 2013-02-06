@@ -40,7 +40,7 @@ static const struct option sGenLongOpts[] = {
 
 static const char *pszGenShortOpts = "hvl:u";
 
-void initIntlSys( ) {
+void initIntlSys(void) {
 
 	setlocale( LC_ALL, "" );
 	bindtextdomain( PACKAGE, LOCALEDIR );
@@ -56,12 +56,10 @@ genericOptHandler( int a_iNumArgs, char **a_pszArgs,
 	CmdHelpFunction  tCmdHelp = ( a_tCmdHelpFunction ) ? a_tCmdHelpFunction
 							   : logCmdHelp;
 
-	char  szShortOpts[strlen( pszGenShortOpts )
-			  + ( ( a_pszShortOpts == NULL ) ? 0 : strlen( a_pszShortOpts ) )
-			  + 1];
+	char  szShortOpts[64];
 
 	int            iNumGenLongOpts = sizeof( sGenLongOpts ) / sizeof( struct option );
-	struct option  sLongOpts[iNumGenLongOpts + a_iNumOpts + 1];
+	struct option  sLongOpts[64];
 
 	int  iOpt;
 	int  rc;

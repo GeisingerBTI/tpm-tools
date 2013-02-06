@@ -132,7 +132,7 @@ int parseStringWithValues(const char *aArg,
 		}
 
 		if (!found) {
-			if (strncmp(aArg + offset, "0x", 2) == 0) {
+			if (*(char *)(aArg + offset) == '0' && *(char *)(aArg + offset + 1) == 'x') {
 				if (sscanf(aArg + offset, "%x%n", &num, &numbytes)
 				    != 1) {
 					logError(_("Could not parse hexadecimal "
@@ -250,7 +250,7 @@ int parseHexOrDecimal(const char *aArg, unsigned int *x,
 	while (isspace(*aArg))
 		aArg++;
 
-	if (strncmp(aArg, "0x", 2) == 0) {
+	if (aArg[0] == '0' && aArg[1] == 'x') {
 		if (sscanf(aArg, "%x", x) != 1) {
 			return -1;
 		}

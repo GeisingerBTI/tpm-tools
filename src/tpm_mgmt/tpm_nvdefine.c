@@ -58,7 +58,7 @@ static int parse(const int aOpt, const char *aArg)
 		break;
 
 	case 'p':
-		if (!strcmp(aArg, "?")) {
+		if (aArg[0] == '?') {
 			displayStringsAndValues(permvalues, "");
 			end = 1;
 			return 0;
@@ -160,7 +160,7 @@ static void help(const char* aCmd)
         displayStringsAndValues(permvalues, "                ");
 }
 
-void logInvalidPcrInfoFile()
+void logInvalidPcrInfoFile(void)
 {
 	logError(_("Invalid PCR info file. Format is:\n"
 		 "[r/w] [PCR IDX] [SHA-1 ascii]\n\nExample:\n"
