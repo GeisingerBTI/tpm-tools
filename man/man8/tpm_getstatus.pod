@@ -1,0 +1,54 @@
+=head1 NAME
+
+tpm_getstatus - displays information about the TPM's functional status
+
+=head1 SYNOPSIS
+
+B<tpm_getstatus [OPTIONS]>
+
+=head1 DESCRIPTION
+
+B<tpm_getstatus> displays information from the TPM's TPM_PERMANENT_FLAGS data structure. The raw data is first shown, then the individual flag values are printed based on the raw data. This operation can be restricted to require owner authorization, in which case the command will prompt for the owner password before requesting the data.
+
+=over 4
+
+=item B<-h, --help>
+
+Display command usage info.
+
+=item B<-v, --version>
+
+Display command version info.
+
+=item B<-l, --log [none|error|info|debug]>
+
+Set logging level.
+
+=item B<-u, --unicode>
+
+Use TSS UNICODE encoding for passwords to comply with applications
+using TSS popup boxes
+
+=item B<-y, --owner-well-known>
+
+Use a secret of all zeros (20 bytes of zeros) as the owner's secret.
+
+=item B<-o, --pwdo> (optional parameter)
+
+The owner password.
+
+A password may be directly provided for example by using '--pwdo=password' or
+'-o password'. If no password is provided with this option then the program will
+prompt the user for the password.
+
+=item B<>
+
+=back
+
+=head1 SEE ALSO
+
+B<tpm_getpubek>(8), B<tpm_nvinfo>(8)
+
+=head1 REPORTING BUGS
+
+Report bugs to <trousers-users@lists.sourceforge.net>

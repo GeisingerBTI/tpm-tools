@@ -27,6 +27,10 @@
 #include "tpm_utils.h"
 #include "tpm_nvcommon.h"
 
+static UINT32 readLocalityValue = TPM_LOC_ZERO | TPM_LOC_ONE | TPM_LOC_TWO |
+				     TPM_LOC_THREE | TPM_LOC_FOUR;
+static UINT32 writeLocalityValue = TPM_LOC_ZERO | TPM_LOC_ONE | TPM_LOC_TWO |
+				     TPM_LOC_THREE | TPM_LOC_FOUR;
 static unsigned int nvindex;
 static BOOL nvindex_set;
 static unsigned int nvperm;
@@ -122,6 +126,18 @@ static int parse(const int aOpt, const char *aArg)
 			return -1;
 		break;
 
+	case 'R':
+		if (parseHexOrDecimal(aArg, &readLocalityValue, 0, UINT_MAX,
+				       "read locality value") != 0)
+			return -1;
+		break;
+
+	case 'W':
+		if (parseHexOrDecimal(aArg, &writeLocalityValue, 0, UINT_MAX,
+				       "write locality value") != 0)
+			return -1;
+		break;
+
 	case 'f':
 		filename = aArg;
 		break;
@@ -152,6 +168,12 @@ static void help(const char* aCmd)
 		     _("PCRs to seal the NVRAM area to for reading (use multiple times)"));
 	logCmdOption("-w, --wpcrs",
 		     _("PCRs to seal the NVRAM area to for writing (use multiple times)"));
+	logCmdOption("-R, --rlv",
+		     _("read locality value, one byte in hex (starting with 0x) or decimal.\n"
+		       "\t\tSee man page for details, default is all localities (0x1f)"));
+	logCmdOption("-W, --wlv",
+		     _("write locality value, one byte in hex or decimal. See read locality\n"
+		       "\t\tvalue for options"));
 	logCmdOption("-f, --filename",
 		     _("File containing PCR info for the NVRAM area"));
 
@@ -252,6 +274,8 @@ int main(int argc, char **argv)
 		{"rpcrs"           , required_argument, NULL, 'r'},
 		{"wpcrs"           , required_argument, NULL, 'w'},
 		{"filename"        , required_argument, NULL, 'f'},
+		{"rlv"             , optional_argument, NULL, 'R'},
+		{"wlv"             , optional_argument, NULL, 'W'},
 		{"pwdo"            , optional_argument, NULL, 'o'},
 		{"pwda"            , optional_argument, NULL, 'a'},
 		{"use-unicode"     ,       no_argument, NULL, 'u'},
@@ -260,13 +284,11 @@ int main(int argc, char **argv)
 		{NULL              ,       no_argument, NULL, 0},
 	};
 	TSS_FLAG initFlag = TSS_PCRS_STRUCT_INFO_SHORT;
-	UINT32 localityValue = TPM_LOC_ZERO | TPM_LOC_ONE | TPM_LOC_TWO |
-			       TPM_LOC_THREE | TPM_LOC_FOUR;
 
 	initIntlSys();
 
 	if (genericOptHandler
-		    (argc, argv, "i:s:p:o:a:r:w:f:yzu", hOpts,
+		    (argc, argv, "i:s:p:o:a:r:w:R:W:f:yzu", hOpts,
 		     sizeof(hOpts) / sizeof(struct option), parse, help) != 0)
 		goto out;
 
@@ -381,6 +403,34 @@ int main(int argc, char **argv)
 				 nvsize) != TSS_SUCCESS)
 		goto out_close_obj;
 
+	if (selectedPcrsReadLen || readLocalityValue || filename) {
+		if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
+					&hPcrsRead) != TSS_SUCCESS)
+			goto out_close_obj;
+
+		if (readLocalityValue > 0x1f) {
+			logMsg(_("Error: read locality value must be between 0 and 0x1f\n"));
+			goto out_close_obj;
+		}
+
+		if (pcrcompositeSetPcrLocality(hPcrsRead, readLocalityValue) != TSS_SUCCESS)
+			goto out_close_obj;
+	}
+
+	if (selectedPcrsWriteLen || writeLocalityValue || filename) {
+		if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
+					&hPcrsWrite) != TSS_SUCCESS)
+			goto out_close_obj;
+
+		if (writeLocalityValue > 0x1f) {
+			logMsg(_("Error: write locality value must be between 0 and 0x1f\n"));
+			goto out_close_obj;
+		}
+
+		if (pcrcompositeSetPcrLocality(hPcrsWrite, writeLocalityValue) != TSS_SUCCESS)
+			goto out_close_obj;
+	}
+
 	if (selectedPcrsReadLen) {
 		UINT32 pcrSize;
 		BYTE *pcrValue;
@@ -392,10 +442,6 @@ int main(int argc, char **argv)
 				goto out_close;
 			}
 		}
-
-		if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
-					&hPcrsRead) != TSS_SUCCESS)
-			goto out_close;
 
 		for (i = 0; i < selectedPcrsReadLen; i++) {
 			if (tpmPcrRead(hTpm, selectedPcrsRead[i], &pcrSize, &pcrValue) !=
@@ -420,10 +466,6 @@ int main(int argc, char **argv)
 				goto out_close;
 			}
 		}
-
-		if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
-					&hPcrsWrite) != TSS_SUCCESS)
-			goto out_close;
 
 		for (i = 0; i < selectedPcrsWriteLen; i++) {
 			if (tpmPcrRead(hTpm, selectedPcrsWrite[i], &pcrSize, &pcrValue) !=
@@ -450,14 +492,6 @@ int main(int argc, char **argv)
 		    != TSS_SUCCESS)
 			goto out_close_obj;
 	}
-
-	if (hPcrsRead)
-		if (pcrcompositeSetPcrLocality(hPcrsRead, localityValue) != TSS_SUCCESS)
-			goto out_close;
-
-	if (hPcrsWrite)
-		if (pcrcompositeSetPcrLocality(hPcrsWrite, localityValue) != TSS_SUCCESS)
-			goto out_close;
 
 	if (NVDefineSpace(nvObject, hPcrsRead, hPcrsWrite) != TSS_SUCCESS)
 		goto out_close;

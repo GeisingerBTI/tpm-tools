@@ -28,7 +28,8 @@ man8_PODS +=	tpm_nvdefine.pod	\
 		tpm_nvinfo.pod		\
 		tpm_nvread.pod		\
 		tpm_nvrelease.pod	\
-		tpm_nvwrite.pod
+		tpm_nvwrite.pod		\
+		tpm_getstatus.pod
 endif
 
 man8_MANS =	tpm_changeownerauth.8	\

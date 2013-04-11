@@ -30,6 +30,7 @@ sbin_PROGRAMS	=	tpm_changeownerauth \
 			tpm_clear	\
 			tpm_createek	\
 			tpm_getpubek    \
+			tpm_getstatus \
 			tpm_restrictpubek \
 			tpm_setactive	\
 			tpm_setenable	\
@@ -64,6 +65,7 @@ tpm_changeownerauth_SOURCES =	tpm_changeauth.c
 tpm_clear_SOURCES	=	tpm_clear.c
 tpm_createek_SOURCES	=	tpm_createek.c
 tpm_getpubek_SOURCES	=	tpm_getpubek.c
+tpm_getstatus_SOURCES   =       tpm_getstatus.c
 tpm_nvdefine_SOURCES	=	tpm_nvdefine.c tpm_nvcommon.c
 tpm_nvinfo_SOURCES	=	tpm_nvinfo.c tpm_nvcommon.c
 tpm_nvrelease_SOURCES	=	tpm_nvrelease.c tpm_nvcommon.c

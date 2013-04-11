@@ -74,6 +74,49 @@ To select the NVRAM area with index 0x100, the command line parameter should be 
 The size of the NVRAM area.
 The parameter must either be a decimal number or a hexadecimal number starting with '0x'.
 
+=item B<-R, --rlv>
+
+Read locality value, one byte in hex (starting with 0x) or decimal
+
+Any combination of localities is valid:
+
+=over 4
+
+	Locality zero  = 0x1
+	Locality one   = 0x2
+	Locality two   = 0x4
+	Locality three = 0x8
+	Locality four  = 0x10
+	All localities = 0x1f (default)
+
+
+=back
+
+Note that on an unmodified Linux system, only locality zero is implemented in the TPM
+device driver.  This means that if your NVRAM area doesn't have the read locality zero
+bit set, it will be unreadable from an application without device driver modification.
+
+=item B<-W, --wlv>
+
+Write locality value, one byte in hex (starting with 0x) or decimal
+
+Any combination of localities is valid:
+
+=over 4
+
+	Locality zero  = 0x1
+	Locality one   = 0x2
+	Locality two   = 0x4
+	Locality three = 0x8
+	Locality four  = 0x10
+	All localities = 0x1f (default)
+
+=back
+
+Note that on an unmodified Linux system, only locality zero is implemented in the TPM
+device driver.  This means that if your NVRAM area doesn't have the write locality zero
+bit set, it will be unwritable from an application without device driver modification.
+
 =item B<-p, --permissions>
 
 The access permissions associated with the NVRAM area.
