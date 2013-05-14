@@ -465,7 +465,7 @@ out:
 void tpmUnsealShred(unsigned char* data, int size) {
 
 	if ( data != NULL ) {
-		memset( data, 0, size);
+		__memset( data, 0, size);
 		free(data);
 	}
 
