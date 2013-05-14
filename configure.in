@@ -140,9 +140,9 @@ AC_TYPE_UID_T
 
 CFLAGS="$CFLAGS -Wall -Wreturn-type -Wsign-compare"
 
-AC_CONFIG_FILES(./Makefile		\
+AC_CONFIG_FILES(Makefile		\
 		po/Makefile.in		\
-		m4/Makefile 		\
+		m4/Makefile		\
 		include/Makefile	\
 		lib/Makefile		\
 		src/Makefile		\
