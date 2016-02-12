@@ -20,6 +20,7 @@
  */
 #include <openssl/evp.h>
 #include <limits.h>
+#include <errno.h>
 #include "tpm_tspi.h"
 #include "tpm_utils.h"
 #include "tpm_seal.h"
@@ -36,12 +37,13 @@ static void help(const char *aCmd)
 	logCmdOption("-p, --pcr NUMBER",
 		     _
 		     ("PCR to seal data to.  Default is none.  This option can be specified multiple times to choose more than one PCR."));
+	logCmdOption("-f, --permfile", _("File of PCRs and expected hash to seal data to (overrides -p)"));
 	logCmdOption("-z, --well-known", _("Use TSS_WELL_KNOWN_SECRET as the SRK secret."));
 	logCmdOption("-u, --unicode", _("Use TSS UNICODE encoding for the SRK password to comply with applications using TSS popup boxes"));
 
 }
 
-static char in_filename[PATH_MAX] = "", out_filename[PATH_MAX] = "";
+static char in_filename[PATH_MAX] = "", out_filename[PATH_MAX] = "", perms_filename[PATH_MAX] = "";
 static TSS_HPCRS hPcrs = NULL_HPCRS;
 static TSS_HTPM hTpm;
 static UINT32 selectedPcrs[24];
@@ -73,6 +75,12 @@ static int parse(const int aOpt, const char *aArg)
 			rc = 0;
 		}
 		break;
+	case 'f':
+		if (aArg) {
+			strncpy(perms_filename, aArg, PATH_MAX);
+			rc = 0;
+		}
+		break;
 	case 'u':
 		passUnicode = TRUE;
 		rc = 0;
@@ -88,6 +96,68 @@ static int parse(const int aOpt, const char *aArg)
 
 }
 
+void logInvalidPcrInfoFile()
+{
+	logError(_("Invalid PCR info file. Format is:\n"
+		 "[PCR IDX] [SHA-1 ascii]\n\nExample:\n"
+		 "9 00112233445566778899AABBCCDDEEFF00112233"));
+}
+
+int
+parsePermsFile(FILE *f, TSS_HCONTEXT *hContext, TSS_HPCRS *hPcrs, TSS_FLAG* initFlag)
+{
+	UINT32 pcrSize;
+	unsigned int pcr, n;
+	char hash_ascii[65], hash_bin[32], save;
+	int rc = -1;
+
+	while (!feof(f)) {
+		errno = 0;
+		n = fscanf(f, "%u %s\n", &pcr, hash_ascii);
+		if (n != 2) {
+			logInvalidPcrInfoFile();
+			goto out;
+		} else if (errno != 0) {
+			perror("fscanf");
+			goto out;
+		}
+
+		if (pcr > 15) {
+
+#ifdef TSS_LIB_IS_12
+			(*initFlag) |= TSS_PCRS_STRUCT_INFO_LONG;
+#else
+			logError(_("This program was compiled for a v1.1 TSS, which "
+				 "can only seal\n data to PCRs 0-15. PCR %u is out of range"
+				 "\n"), pcr);
+			goto out;
+#endif
+		}
+
+		for (n = 0; n < strlen(hash_ascii); n += 2) {
+			save = hash_ascii[n + 2];
+			hash_ascii[n + 2] = '\0';
+			hash_bin[n/2] = strtoul(&hash_ascii[n], NULL, 16);
+			hash_ascii[n + 2] = save;
+		}
+		pcrSize = n/2;
+
+		if (*hPcrs == NULL_HPCRS)
+			if (contextCreateObject(*hContext, TSS_OBJECT_TYPE_PCRS,
+						TSS_PCRS_STRUCT_INFO_SHORT,
+						hPcrs) != TSS_SUCCESS)
+				goto out;
+
+		if (pcrcompositeSetPcrValue(*hPcrs, pcr, pcrSize, (BYTE *)hash_bin)
+				!= TSS_SUCCESS)
+			goto out;
+	}
+
+	rc = 0;
+out:
+	return rc;
+}
+
 int main(int argc, char **argv)
 {
 
@@ -98,6 +168,7 @@ int main(int argc, char **argv)
 	struct option opts[] =
 	    { {"infile", required_argument, NULL, 'i'},
 	{"outfile", required_argument, NULL, 'o'},
+	{"permfile", required_argument, NULL, 'f'},
 	{"pcr", required_argument, NULL, 'p'},
 	{"unicode", no_argument, NULL, 'u'},
 	{"well-known", no_argument, NULL, 'z'}
@@ -154,36 +225,54 @@ int main(int argc, char **argv)
 
 	/* Create the PCRs object. If any PCRs above 15 are selected, this will need to be
 	 * a 1.2 TSS/TPM */
-	if (selectedPcrsLen) {
+	if(selectedPcrsLen || strlen(perms_filename) == 0){
 		TSS_FLAG initFlag = 0;
-		UINT32 pcrSize;
-		BYTE *pcrValue;
 
-		for (i = 0; i < selectedPcrsLen; i++) {
-			if (selectedPcrs[i] > 15) {
+
+		if (selectedPcrsLen) {
+			UINT32 pcrSize;
+			BYTE *pcrValue;
+
+			for (i = 0; i < selectedPcrsLen; i++) {
+				if (selectedPcrs[i] > 15) {
 #ifdef TSS_LIB_IS_12
-				initFlag |= TSS_PCRS_STRUCT_INFO_LONG;
+					initFlag |= TSS_PCRS_STRUCT_INFO_LONG;
 #else
-				logError(_("This version of %s was compiled for a v1.1 TSS, which "
-					 "can only seal\n data to PCRs 0-15. PCR %u is out of range"
-					 "\n"), argv[0], selectedPcrs[i]);
-				goto out_close;
+					logError(_("This version of %s was compiled for a v1.1 TSS, which "
+						 "can only seal\n data to PCRs 0-15. PCR %u is out of range"
+						 "\n"), argv[0], selectedPcrs[i]);
+					goto out_close;
 #endif
+				}
+			}
+
+			if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
+						&hPcrs) != TSS_SUCCESS)
+				goto out_close;
+
+			for (i = 0; i < selectedPcrsLen; i++) {
+				if (tpmPcrRead(hTpm, selectedPcrs[i], &pcrSize, &pcrValue) != TSS_SUCCESS)
+					goto out_close;
+
+				if (pcrcompositeSetPcrValue(hPcrs, selectedPcrs[i], pcrSize, pcrValue)
+						!= TSS_SUCCESS)
+					goto out_close;
 			}
 		}
 
-		if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
-					&hPcrs) != TSS_SUCCESS)
-			goto out_close;
+		if(strlen(perms_filename) != 0){
+			FILE *f;
 
-		for (i = 0; i < selectedPcrsLen; i++) {
-			if (tpmPcrRead(hTpm, selectedPcrs[i], &pcrSize, &pcrValue) != TSS_SUCCESS)
+			f = fopen(perms_filename, "r");
+			if (!f) {
+				logError(_("Could not access file '%s'\n"), perms_filename);
 				goto out_close;
+			}
 
-			if (pcrcompositeSetPcrValue(hPcrs, selectedPcrs[i], pcrSize, pcrValue)
-					!= TSS_SUCCESS)
+			if (parsePermsFile(f, &hContext, &hPcrs, &initFlag) != TSS_SUCCESS)
 				goto out_close;
 		}
+
 #ifdef TSS_LIB_IS_12
 		if (initFlag) {
 			UINT32 localityValue =
@@ -195,7 +284,6 @@ int main(int argc, char **argv)
 		}
 #endif
 	}
-
 	/* Retrieve random data to be used as the symmetric key
 	   (this key will encrypt the input file contents) */
 	if (tpmGetRandom(hTpm, EVP_CIPHER_key_length(EVP_aes_256_cbc()),
