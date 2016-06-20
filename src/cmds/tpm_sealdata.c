@@ -194,7 +194,7 @@ int main(int argc, char **argv)
 
 	initIntlSys();
 
-	if (genericOptHandler(argc, argv, "i:o:p:uz", opts,
+	if (genericOptHandler(argc, argv, "i:o:p:f:uz", opts,
 			      sizeof(opts) / sizeof(struct option), parse,
 			      help) != 0)
 		goto out;
@@ -225,10 +225,13 @@ int main(int argc, char **argv)
 
 	/* Create the PCRs object. If any PCRs above 15 are selected, this will need to be
 	 * a 1.2 TSS/TPM */
-	if(selectedPcrsLen || strlen(perms_filename) == 0){
+	if(selectedPcrsLen || strlen(perms_filename) != 0){
 		TSS_FLAG initFlag = 0;
 
-
+		if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
+					&hPcrs) != TSS_SUCCESS)
+			goto out_close;
+		
 		if (selectedPcrsLen) {
 			UINT32 pcrSize;
 			BYTE *pcrValue;
@@ -246,9 +249,6 @@ int main(int argc, char **argv)
 				}
 			}
 
-			if (contextCreateObject(hContext, TSS_OBJECT_TYPE_PCRS, initFlag,
-						&hPcrs) != TSS_SUCCESS)
-				goto out_close;
 
 			for (i = 0; i < selectedPcrsLen; i++) {
 				if (tpmPcrRead(hTpm, selectedPcrs[i], &pcrSize, &pcrValue) != TSS_SUCCESS)
