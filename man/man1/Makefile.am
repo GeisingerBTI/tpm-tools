@@ -23,12 +23,12 @@
 
 man1_MANS	=	tpm_sealdata.1		\
 			tpm_version.1
-if P11_SUPPORT
+#if P11_SUPPORT
 man1_MANS	+=	tpmtoken_init.1		\
 			tpmtoken_import.1	\
 			tpmtoken_objects.1	\
 			tpmtoken_protect.1	\
 			tpmtoken_setpasswd.1
-endif
+#endif
 
 EXTRA_DIST = $(man1_MANS)
